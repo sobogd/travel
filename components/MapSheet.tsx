@@ -10,7 +10,12 @@ const clock = (s: string | null) => {
   return m ? m[1] : "";
 };
 const legDate = (leg: Leg) => dateOf(leg.depLocal);
-const deeplink = (leg: Leg) => googleFlights(leg.fromIata, leg.toIata, legDate(leg));
+// each chip = one physical flight → airline + nonstop
+const deeplink = (leg: Leg) =>
+  googleFlights(leg.fromIata, leg.toIata, legDate(leg), {
+    airline: carrierName(leg.airlineIata) || leg.airlineName,
+    nonstop: true,
+  });
 
 // unique key per physical flight (number + date)
 const fid = (l: Leg) => `${l.flightNo || ""}|${legDate(l)}`;

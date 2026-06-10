@@ -1,6 +1,15 @@
-// Google Flights deep link — one-way, exact date. Universal for any carrier.
-export function googleFlights(origin: string, dest: string, date: string): string {
-  const q = `One way flights from ${origin} to ${dest} on ${date}`;
+// Google Flights deep link — one-way, exact date. Optional airline + nonstop
+// are honoured via the natural-language query (exact times are NOT — Google
+// ignores them in q=). Universal for any carrier.
+export function googleFlights(
+  origin: string,
+  dest: string,
+  date: string,
+  opts?: { airline?: string | null; nonstop?: boolean },
+): string {
+  const air = opts?.airline ? `${opts.airline} ` : "";
+  const stop = opts?.nonstop ? " nonstop" : "";
+  const q = `${air}One way flights from ${origin} to ${dest} on ${date}${stop}`;
   return `https://www.google.com/travel/flights?hl=ru&curr=EUR&q=${encodeURIComponent(q)}`;
 }
 

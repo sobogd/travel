@@ -80,7 +80,16 @@ function LegDetail({ leg }: { leg: Leg }) {
         <Plane size={14} className="text-emerald-500" />
         {carrierName(leg.airlineIata) || leg.airlineName || "—"}
         <button
-          onClick={() => openGoogle(leg.fromIata, leg.toIata, leg.depLocal)}
+          onClick={() =>
+            window.open(
+              googleFlights(leg.fromIata, leg.toIata, dateOf(leg.depLocal), {
+                airline: carrierName(leg.airlineIata) || leg.airlineName,
+                nonstop: true,
+              }),
+              "_blank",
+              "noopener",
+            )
+          }
           className="flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-xs text-emerald-600 transition active:scale-95"
         >
           {leg.flightNo || "рейс"} <ExternalLink size={11} />

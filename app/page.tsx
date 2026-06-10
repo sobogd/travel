@@ -37,10 +37,11 @@ type SearchResp = {
   id: string;
   origin: string;
   dest: string;
-  tStart: string;
+  dateFrom: string;
+  dateTo: string;
   itineraries: Itinerary[];
 };
-type SearchRow = { id: string; originCode: string; destCode: string; tStart: string; createdAt: string };
+type SearchRow = { id: string; originCode: string; destCode: string; dateFrom: string; dateTo: string; createdAt: string };
 
 const fmtTime = (s: string | null) => {
   if (!s) return "—";
@@ -61,6 +62,9 @@ const fmtLayover = (min?: number) =>
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
 }
+function addDaysStr(d: string, n: number) {
+  return new Date(Date.parse(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+}
 
 function LegRow({ leg }: { leg: Leg }) {
   return (
@@ -79,9 +83,9 @@ function LegRow({ leg }: { leg: Leg }) {
 export default function Home() {
   const [from, setFrom] = useState<Airport | null>(null);
   const [to, setTo] = useState<Airport | null>(null);
-  const [date, setDate] = useState(todayDate());
-  const [time, setTime] = useState("06:00");
-  const [maxLayoverH, setMaxLayoverH] = useState(6);
+  const [dateFrom, setDateFrom] = useState(todayDate());
+  const [dateTo, setDateTo] = useState(addDaysStr(todayDate(), 2));
+  const [maxLayoverH, setMaxLayoverH] = useState(8);
   const [maxDistKm, setMaxDistKm] = useState(100);
   const [busy, setBusy] = useState(false);
   const [forbidden, setForbidden] = useState(false);
@@ -116,7 +120,8 @@ export default function Home() {
         body: JSON.stringify({
           originCode: from.code,
           destCode: to.code,
-          tStart: `${date}T${time}`,
+          dateFrom,
+          dateTo,
           maxDistKm,
           maxLayoverMin: maxLayoverH * 60,
         }),
@@ -199,25 +204,29 @@ export default function Home() {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium" style={{ color: "var(--hint)" }}>
-                Дата
+                Период с
               </label>
               <input
                 type="date"
-                value={date}
+                value={dateFrom}
                 min={todayDate()}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  if (e.target.value > dateTo) setDateTo(e.target.value);
+                }}
                 className="w-full rounded-xl border px-3 py-3 text-base outline-none"
                 style={fieldStyle}
               />
             </div>
-            <div className="w-28">
+            <div className="flex-1">
               <label className="mb-1 block text-xs font-medium" style={{ color: "var(--hint)" }}>
-                Не раньше
+                по
               </label>
               <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
+                type="date"
+                value={dateTo}
+                min={dateFrom}
+                onChange={(e) => setDateTo(e.target.value)}
                 className="w-full rounded-xl border px-3 py-3 text-base outline-none"
                 style={fieldStyle}
               />
@@ -345,7 +354,7 @@ export default function Home() {
                   <ArrowRight size={13} className="shrink-0 text-emerald-500" />
                   <span className="font-mono text-sm font-semibold">{h.destCode}</span>
                   <span className="ml-2 truncate text-xs" style={{ color: "var(--hint)" }}>
-                    {fmtTime(h.tStart)}
+                    {h.dateFrom}…{h.dateTo}
                   </span>
                 </div>
                 <button

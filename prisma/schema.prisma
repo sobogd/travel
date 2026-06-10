@@ -28,7 +28,8 @@ model Search {
   ownerKey      String? // "telegram:<id>" | "device:<uuid>"
   originCode    String
   destCode      String
-  tStart        DateTime // earliest departure (UTC)
+  dateFrom      String // YYYY-MM-DD (period start)
+  dateTo        String // YYYY-MM-DD (period end)
   maxDistKm     Int // nearby-airport ground radius
   maxLayoverMin Int // ceiling for connection time
   results       Json // Itinerary[]

@@ -13,27 +13,12 @@ const legDate = (leg: Leg) => {
   return m ? m[1] : "";
 };
 
-// Per-airline booking deeplink. Unknown carriers fall back to Google Flights.
+// Google Flights for every flight — one-way, exact date. (Airline-specific
+// deeplinks dropped per request; Google is cleaner and universal.)
 function deeplink(leg: Leg): string {
   const o = leg.fromIata, d = leg.toIata, dd = legDate(leg); // dd = YYYY-MM-DD
-  const c = (leg.airlineIata || "").toUpperCase();
-  if (c === "VY")
-    return `https://tickets.vueling.com/booking/flightSearch?o=${o}&d=${d}&dd=${dd}&adt=1&chd=0&inf=0&dt=0&c=es-ES&cur=EUR&b=1`;
-  if (c === "FR")
-    return `https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=${dd}&originIata=${o}&destinationIata=${d}&isReturn=false`;
-  if (c === "V7")
-    return `https://www.volotea.com/en/flights/${o}-${d}/?outboundDate=${dd}&adults=1`;
-  if (c === "IB" || c === "I2" || c === "YW") {
-    const [y, m, day] = dd.split("-");
-    return (
-      `https://www.iberia.com/flights/?market=ES&language=es&flexible=true&TRIP_TYPE=1` +
-      `&BEGIN_CITY_01=${o}&END_CITY_01=${d}` +
-      `&BEGIN_DAY_01=${day}&BEGIN_MONTH_01=${y}${m}&BEGIN_YEAR_01=${y}` +
-      `&FARE_TYPE=R&ADT=1&CHD=0&INF=0&BNN=0&YTH=0&YCD=0&boton=Buscar&bookingMarket=ES#!/availability`
-    );
-  }
-  // everything else → Google Flights for the date/route
-  return `https://www.google.com/travel/flights?hl=ru&curr=EUR&q=${encodeURIComponent(`flights from ${o} to ${d} on ${dd}`)}`;
+  const q = `One way flights from ${o} to ${d} on ${dd}`;
+  return `https://www.google.com/travel/flights?hl=ru&curr=EUR&q=${encodeURIComponent(q)}`;
 }
 
 // unique key per physical flight (number + date)

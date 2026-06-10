@@ -51,8 +51,9 @@ function parse(json: unknown, direction: Direction): ParsedFlight[] {
       : (json as { arrivals?: unknown[] }).arrivals) ?? [];
   const out: ParsedFlight[] = [];
   for (const f of list as Array<Record<string, unknown>>) {
-    // operating flight only — drop codeshare duplicates
-    if (f.codeshareStatus && f.codeshareStatus !== "IsOperator") continue;
+    // drop only explicit codeshare duplicates; keep operating + unclassified
+    // ("Unknown") — most real flights come back as "Unknown".
+    if (f.codeshareStatus === "IsCodeshared") continue;
     const dep = f.departure as
       | { airport?: { iata?: string; name?: string }; scheduledTime?: { utc?: string; local?: string } }
       | undefined;

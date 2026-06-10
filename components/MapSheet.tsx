@@ -2,24 +2,15 @@
 
 import { X, ArrowRight, Car, ExternalLink } from "lucide-react";
 import { carrierName } from "@/lib/types";
+import { googleFlights, dateOf } from "@/lib/deeplink";
 import type { Leg, SearchResp } from "@/components/ResultsSheet";
 
 const clock = (s: string | null) => {
   const m = s?.match(/[ T](\d{2}:\d{2})/);
   return m ? m[1] : "";
 };
-const legDate = (leg: Leg) => {
-  const m = (leg.depLocal || "").match(/(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : "";
-};
-
-// Google Flights for every flight — one-way, exact date. (Airline-specific
-// deeplinks dropped per request; Google is cleaner and universal.)
-function deeplink(leg: Leg): string {
-  const o = leg.fromIata, d = leg.toIata, dd = legDate(leg); // dd = YYYY-MM-DD
-  const q = `One way flights from ${o} to ${d} on ${dd}`;
-  return `https://www.google.com/travel/flights?hl=ru&curr=EUR&q=${encodeURIComponent(q)}`;
-}
+const legDate = (leg: Leg) => dateOf(leg.depLocal);
+const deeplink = (leg: Leg) => googleFlights(leg.fromIata, leg.toIata, legDate(leg));
 
 // unique key per physical flight (number + date)
 const fid = (l: Leg) => `${l.flightNo || ""}|${legDate(l)}`;

@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX, Map as MapIcon } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX, Map as MapIcon, ExternalLink } from "lucide-react";
 import { carrierName } from "@/lib/types";
+import { googleFlights, dateOf } from "@/lib/deeplink";
 import { MapSheet } from "@/components/MapSheet";
+
+const openGoogle = (o: string, d: string, local: string | null) =>
+  window.open(googleFlights(o, d, dateOf(local)), "_blank", "noopener");
 
 export type Leg = {
   fromIata: string;
@@ -75,11 +79,12 @@ function LegDetail({ leg }: { leg: Leg }) {
       <div className="flex items-center gap-2 text-sm font-medium">
         <Plane size={14} className="text-emerald-500" />
         {carrierName(leg.airlineIata) || leg.airlineName || "—"}
-        {leg.flightNo && (
-          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-xs text-emerald-600">
-            {leg.flightNo}
-          </span>
-        )}
+        <button
+          onClick={() => openGoogle(leg.fromIata, leg.toIata, leg.depLocal)}
+          className="flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-xs text-emerald-600 transition active:scale-95"
+        >
+          {leg.flightNo || "рейс"} <ExternalLink size={11} />
+        </button>
       </div>
       <div className="flex items-start gap-3">
         <div className="flex flex-col items-end pt-0.5 text-right">
@@ -184,10 +189,12 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
             // ---- LIST ----
             <div className="flex flex-col gap-2.5">
               {items.map((it, i) => (
-                <button
+                <div
                   key={i}
                   onClick={() => setSel(it)}
-                  className="flex flex-col gap-2 rounded-2xl border p-3.5 text-left shadow-sm transition active:scale-[0.99]"
+                  role="button"
+                  tabIndex={0}
+                  className="flex cursor-pointer flex-col gap-2 rounded-2xl border p-3.5 text-left shadow-sm transition active:scale-[0.99]"
                   style={{ background: "var(--bg)", borderColor: "var(--border)" }}
                 >
                   <div className="flex items-center gap-2">
@@ -205,7 +212,13 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
                         <Clock size={12} /> {fmtLayover(it.layoverMin)}
                       </span>
                     )}
-                    <ArrowRight size={14} className="ml-auto" style={{ color: "var(--hint)" }} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openGoogle(result.origin, result.dest, it.legs[0].depLocal); }}
+                      aria-label="Открыть в Google Flights"
+                      className="ml-auto flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-emerald-600 transition active:scale-90"
+                    >
+                      Google <ExternalLink size={12} />
+                    </button>
                   </div>
                   <LegRow leg={it.legs[0]} />
                   {it.ground && (
@@ -215,7 +228,7 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
                     </div>
                   )}
                   {it.legs[1] && <LegRow leg={it.legs[1]} />}
-                </button>
+                </div>
               ))}
             </div>
           )}

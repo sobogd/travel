@@ -1,0 +1,39 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Local copy of the world's airports (seeded from OurAirports). Code = IATA.
+model Airport {
+  code    String  @id // IATA, e.g. "OVD"
+  icao    String?
+  name    String
+  city    String?
+  country String // ISO country code, e.g. "ES"
+  lat     Float?
+  lon     Float?
+
+  @@index([country])
+  @@map("airports")
+}
+
+// One direct-flight search, tied to a Telegram/device owner (history).
+model Search {
+  id         String   @id @default(cuid())
+  ownerKey   String? // "telegram:<id>" | "device:<uuid>"
+  originCode String
+  destCode   String
+  dateFrom   String // YYYY-MM-DD
+  dateTo     String // YYYY-MM-DD
+  currency   String   @default("EUR")
+  results    Json // DayFare[] — [{ date, available, price, currency }]
+  createdAt  DateTime @default(now())
+
+  @@index([ownerKey])
+  @@map("searches")
+}

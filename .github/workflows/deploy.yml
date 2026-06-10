@@ -1,0 +1,61 @@
+name: Deploy to Prod (main)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install local dependencies
+        run: npm ci
+
+      - name: Build Application
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Copy build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: deployer
+          key: ${{ secrets.SSH_KEY }}
+          source: ".next/,package.json,package-lock.json,public/,prisma/,scripts/"
+          target: "/home/deploy/apps/travel"
+          overwrite: true
+
+      - name: Setup and restart on VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: deployer
+          key: ${{ secrets.SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            export PATH=$PATH:/usr/bin:/usr/local/bin:/home/deployer/.npm-global/bin
+            cd /home/deploy/apps/travel
+
+            cat > .env <<EOF
+            DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            BOT_TOKEN="${{ secrets.BOT_TOKEN }}"
+            ALLOWED_TG_IDS="${{ secrets.ALLOWED_TG_IDS }}"
+            PORT="8201"
+            EOF
+
+            npm ci --production
+            npx prisma migrate deploy
+            npx prisma generate
+            # PORT must be a real env var — next start ignores PORT from .env file
+            PORT=8201 pm2 restart travel --update-env || PORT=8201 pm2 start npm --name "travel" -- start
+            pm2 save

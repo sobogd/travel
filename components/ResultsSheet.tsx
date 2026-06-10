@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX, Map as MapIcon } from "lucide-react";
 import { carrierName } from "@/lib/types";
+import { MapSheet } from "@/components/MapSheet";
 
 export type Leg = {
   fromIata: string;
@@ -110,9 +111,11 @@ function LegDetail({ leg }: { leg: Leg }) {
 
 export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose: () => void }) {
   const [sel, setSel] = useState<Itinerary | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const items = result.itineraries;
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
@@ -139,6 +142,11 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
               {sel ? kindLabel(sel) : `${result.dateFrom}…${result.dateTo} · ${items.length} вариантов`}
             </div>
           </div>
+          {!sel && items.length > 0 && (
+            <button onClick={() => setShowMap(true)} aria-label="Карта рейсов" className="rounded-lg p-1.5 text-emerald-600 transition active:scale-90">
+              <MapIcon size={18} />
+            </button>
+          )}
           <button onClick={onClose} aria-label="Закрыть" className="rounded-lg p-1.5 transition active:scale-90" style={{ color: "var(--hint)" }}>
             <X size={18} />
           </button>
@@ -214,5 +222,7 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
         </div>
       </div>
     </div>
+    {showMap && <MapSheet result={result} onClose={() => setShowMap(false)} />}
+    </>
   );
 }

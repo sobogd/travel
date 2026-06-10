@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveOwner, isAllowed } from "@/lib/auth";
-import type { DayFare, SearchResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -19,17 +18,15 @@ export async function GET(
     if (!s || s.ownerKey !== owner) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-    const result: SearchResult = {
+    return NextResponse.json({
       id: s.id,
-      originCode: s.originCode,
-      destCode: s.destCode,
-      dateFrom: s.dateFrom,
-      dateTo: s.dateTo,
-      currency: s.currency,
-      days: (s.results as unknown as DayFare[]) ?? [],
-      createdAt: s.createdAt.toISOString(),
-    };
-    return NextResponse.json(result);
+      origin: s.originCode,
+      dest: s.destCode,
+      tStart: s.tStart.toISOString().slice(0, 16),
+      maxDistKm: s.maxDistKm,
+      maxLayoverMin: s.maxLayoverMin,
+      itineraries: s.results,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

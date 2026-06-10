@@ -22,18 +22,33 @@ model Airport {
   @@map("airports")
 }
 
-// One direct-flight search, tied to a Telegram/device owner (history).
+// One connection search (A→B with custom layover), tied to an owner (history).
 model Search {
-  id         String   @id @default(cuid())
-  ownerKey   String? // "telegram:<id>" | "device:<uuid>"
-  originCode String
-  destCode   String
-  dateFrom   String // YYYY-MM-DD
-  dateTo     String // YYYY-MM-DD
-  currency   String   @default("EUR")
-  results    Json // DayFare[] — [{ date, available, price, currency }]
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  ownerKey      String? // "telegram:<id>" | "device:<uuid>"
+  originCode    String
+  destCode      String
+  tStart        DateTime // earliest departure (UTC)
+  maxDistKm     Int // nearby-airport ground radius
+  maxLayoverMin Int // ceiling for connection time
+  results       Json // Itinerary[]
+  createdAt     DateTime @default(now())
 
   @@index([ownerKey])
   @@map("searches")
+}
+
+// Cached chunk of an airport's FIDS — one row = one 12h AeroDataBox call.
+// flights: ParsedFlight[] (see lib/aerodatabox.ts).
+model FidsCache {
+  id          String   @id @default(cuid())
+  airportCode String // IATA of the queried airport
+  direction   String // "Departure" | "Arrival"
+  date        String // YYYY-MM-DD (airport local)
+  half        String // "AM" (00–12) | "PM" (12–24)
+  flights     Json
+  fetchedAt   DateTime @default(now())
+
+  @@unique([airportCode, direction, date, half])
+  @@map("fids_cache")
 }

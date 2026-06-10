@@ -52,6 +52,7 @@ jobs:
             ALLOWED_TG_IDS="${{ secrets.ALLOWED_TG_IDS }}"
             AMADEUS_CLIENT_ID="${{ secrets.AMADEUS_CLIENT_ID }}"
             AMADEUS_CLIENT_SECRET="${{ secrets.AMADEUS_CLIENT_SECRET }}"
+            AERODATABOX_KEY="${{ secrets.AERODATABOX_KEY }}"
             PORT="8201"
             EOF
 

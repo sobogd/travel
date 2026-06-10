@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveOwner, isAllowed } from "@/lib/auth";
 import { ryanairCheapestPerDay } from "@/lib/ryanair";
 import { voloteaSchedule } from "@/lib/volotea";
+import { amadeusSchedule } from "@/lib/amadeus";
 import type { DayFare, SearchResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -78,17 +79,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Query every airline source in parallel; one failing must not sink the rest.
-    const [ry, vo] = await Promise.allSettled([
+    const settled = await Promise.allSettled([
       ryanairCheapestPerDay(originCode, destCode, dateFrom, dateTo, currency),
       voloteaSchedule(originCode, destCode, dateFrom, dateTo, currency),
+      amadeusSchedule(originCode, destCode, dateFrom, dateTo, currency),
     ]);
-    if (ry.status === "rejected" && vo.status === "rejected") {
-      const msg = ry.reason instanceof Error ? ry.reason.message : "upstream error";
+    if (settled.every((s) => s.status === "rejected")) {
+      const first = settled.find((s) => s.status === "rejected") as
+        | PromiseRejectedResult
+        | undefined;
+      const msg = first?.reason instanceof Error ? first.reason.message : "upstream error";
       return NextResponse.json({ error: `Источники недоступны: ${msg}` }, { status: 502 });
     }
-    const sources: DayFare[][] = [];
-    if (ry.status === "fulfilled") sources.push(ry.value);
-    if (vo.status === "fulfilled") sources.push(vo.value);
+    const sources: DayFare[][] = settled
+      .filter((s): s is PromiseFulfilledResult<DayFare[]> => s.status === "fulfilled")
+      .map((s) => s.value);
     const days = mergeDays(dateFrom, dateTo, currency, sources);
 
     const saved = await prisma.search.create({

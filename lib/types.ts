@@ -17,8 +17,25 @@ export type DayFare = {
   carrier?: string | null; // "FR" Ryanair | "V7" Volotea
 };
 
+const CARRIERS: Record<string, string> = {
+  FR: "Ryanair",
+  V7: "Volotea",
+  IB: "Iberia",
+  VY: "Vueling",
+  I2: "Iberia Express",
+  UX: "Air Europa",
+  U2: "easyJet",
+  W6: "Wizz Air",
+  HV: "Transavia",
+  BA: "British Airways",
+  AF: "Air France",
+  KL: "KLM",
+  LH: "Lufthansa",
+  DY: "Norwegian",
+};
+
 export const carrierName = (code?: string | null) =>
-  code === "FR" ? "Ryanair" : code === "V7" ? "Volotea" : code || "";
+  (code && CARRIERS[code]) || code || "";
 
 export type SearchResult = {
   id: string;

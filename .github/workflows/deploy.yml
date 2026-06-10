@@ -50,6 +50,8 @@ jobs:
             DATABASE_URL="${{ secrets.DATABASE_URL }}"
             BOT_TOKEN="${{ secrets.BOT_TOKEN }}"
             ALLOWED_TG_IDS="${{ secrets.ALLOWED_TG_IDS }}"
+            AMADEUS_CLIENT_ID="${{ secrets.AMADEUS_CLIENT_ID }}"
+            AMADEUS_CLIENT_SECRET="${{ secrets.AMADEUS_CLIENT_SECRET }}"
             PORT="8201"
             EOF
 

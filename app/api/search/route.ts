@@ -2,11 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveOwner, isAllowed } from "@/lib/auth";
 import { ryanairCheapestPerDay } from "@/lib/ryanair";
+import { voloteaSchedule } from "@/lib/volotea";
 import type { DayFare, SearchResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// All calendar dates [from..to] inclusive, as YYYY-MM-DD (UTC).
+function enumerateDates(from: string, to: string): string[] {
+  const out: string[] = [];
+  const d = new Date(from + "T00:00:00Z");
+  const end = new Date(to + "T00:00:00Z");
+  while (d <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+// Merge per-airline day scans into one row per date: available if any carrier
+// flies, price/carrier = the cheapest available fare that day.
+function mergeDays(
+  dateFrom: string,
+  dateTo: string,
+  currency: string,
+  sources: DayFare[][],
+): DayFare[] {
+  const byDate = new Map<string, DayFare[]>();
+  for (const src of sources) {
+    for (const d of src) {
+      if (!d.available || d.price == null) continue;
+      (byDate.get(d.date) ?? byDate.set(d.date, []).get(d.date)!).push(d);
+    }
+  }
+  return enumerateDates(dateFrom, dateTo).map((date) => {
+    const cands = byDate.get(date) ?? [];
+    if (cands.length === 0) {
+      return { date, available: false, price: null, currency, carrier: null };
+    }
+    const best = cands.reduce((a, b) => (b.price! < a.price! ? b : a));
+    return {
+      date,
+      available: true,
+      price: best.price,
+      currency: best.currency,
+      carrier: best.carrier ?? null,
+    };
+  });
+}
 
 // Run a direct-flight scan for a route over a date range (Ryanair only, for
 // now), persist it as the owner's search history, and return the per-day result.
@@ -33,13 +77,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "bad date range" }, { status: 400 });
     }
 
-    let days: DayFare[];
-    try {
-      days = await ryanairCheapestPerDay(originCode, destCode, dateFrom, dateTo, currency);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "upstream error";
-      return NextResponse.json({ error: `Источник недоступен: ${msg}` }, { status: 502 });
+    // Query every airline source in parallel; one failing must not sink the rest.
+    const [ry, vo] = await Promise.allSettled([
+      ryanairCheapestPerDay(originCode, destCode, dateFrom, dateTo, currency),
+      voloteaSchedule(originCode, destCode, dateFrom, dateTo, currency),
+    ]);
+    if (ry.status === "rejected" && vo.status === "rejected") {
+      const msg = ry.reason instanceof Error ? ry.reason.message : "upstream error";
+      return NextResponse.json({ error: `Источники недоступны: ${msg}` }, { status: 502 });
     }
+    const sources: DayFare[][] = [];
+    if (ry.status === "fulfilled") sources.push(ry.value);
+    if (vo.status === "fulfilled") sources.push(vo.value);
+    const days = mergeDays(dateFrom, dateTo, currency, sources);
 
     const saved = await prisma.search.create({
       data: {

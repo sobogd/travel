@@ -48,6 +48,7 @@ export async function ryanairCheapestPerDay(
       available: !f.unavailable && !f.soldOut && value != null,
       price: value ?? null,
       currency: f.price?.currencyCode ?? currency,
+      carrier: "FR",
     };
   });
 }

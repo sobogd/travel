@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { AirportPicker } from "@/components/AirportPicker";
 import { apiFetch, initTelegram, telegramUserId } from "@/lib/client";
-import type { Airport, SearchResult } from "@/lib/types";
+import { type Airport, type SearchResult, carrierName } from "@/lib/types";
 
 type SearchRow = {
   id: string;
@@ -250,7 +250,7 @@ export default function Home() {
                 <p>
                   Прямых рейсов не найдено за этот месяц.
                   <br />
-                  (источник: Ryanair — другие авиакомпании добавим позже)
+                  (источники: Ryanair + Volotea — другие авиакомпании добавим позже)
                 </p>
               </div>
             ) : (
@@ -274,6 +274,11 @@ export default function Home() {
                           ? `${d.price} ${d.currency}`
                           : "есть рейс"}
                       </span>
+                      {d.carrier && (
+                        <span className="text-[11px]" style={{ color: "var(--hint)" }}>
+                          {carrierName(d.carrier)}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

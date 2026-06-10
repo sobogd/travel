@@ -8,12 +8,17 @@ export type Airport = {
 };
 
 // One day of a route's cheapest-fare scan. available=false => no direct flight.
+// carrier = IATA code of the airline with the cheapest fare that day.
 export type DayFare = {
   date: string; // YYYY-MM-DD
   available: boolean;
   price: number | null;
   currency: string;
+  carrier?: string | null; // "FR" Ryanair | "V7" Volotea
 };
+
+export const carrierName = (code?: string | null) =>
+  code === "FR" ? "Ryanair" : code === "V7" ? "Volotea" : code || "";
 
 export type SearchResult = {
   id: string;

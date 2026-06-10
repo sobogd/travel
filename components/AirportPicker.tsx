@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plane, X } from "lucide-react";
 import { apiFetch } from "@/lib/client";
-import type { Airport } from "@/lib/types";
+import { type Airport, cleanCity } from "@/lib/types";
 
 export function AirportPicker({
   label,
@@ -79,7 +79,7 @@ export function AirportPicker({
           <span className="min-w-0 flex-1 truncate text-base font-medium">
             <span className="font-mono">{value.code}</span>
             <span className="ml-2" style={{ color: "var(--hint)" }}>
-              {value.city || value.name}
+              {cleanCity(value.city) || value.name}
             </span>
           </span>
           <button
@@ -117,7 +117,7 @@ export function AirportPicker({
                 {a.code}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{a.city || a.name}</span>
+                <span className="block truncate text-sm">{cleanCity(a.city) || a.name}</span>
                 <span className="block truncate text-xs" style={{ color: "var(--hint)" }}>
                   {a.name} · {a.country}
                 </span>

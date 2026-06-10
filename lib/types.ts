@@ -31,5 +31,10 @@ export type SearchResult = {
   createdAt: string;
 };
 
+// OurAirports municipality sometimes carries an Italian province suffix like
+// "Orio al Serio (BG)" — the "(BG)" reads as Bulgaria. Strip it for display.
+export const cleanCity = (c?: string | null) =>
+  (c || "").replace(/\s*\([A-Z]{2}\)\s*$/, "").trim();
+
 export const airportLabel = (a?: Airport | null) =>
-  a ? `${a.code} · ${a.city || a.name}` : "";
+  a ? `${a.code} · ${cleanCity(a.city) || a.name}` : "";

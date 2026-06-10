@@ -54,6 +54,9 @@ jobs:
             EOF
 
             npm ci --production
+            # Volotea source drives a headless chromium (Imperva-walled API).
+            # System libs are pre-installed on the host; this fetches the browser.
+            npx playwright install chromium
             npx prisma migrate deploy
             npx prisma generate
             # PORT must be a real env var — next start ignores PORT from .env file

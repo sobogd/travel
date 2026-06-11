@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plane, X } from "lucide-react";
+import { Plane, X, Map as MapIcon } from "lucide-react";
 import { apiFetch } from "@/lib/client";
 import { type Airport, cleanCity } from "@/lib/types";
+import { MapPicker } from "@/components/MapPicker";
 
 export function AirportPicker({
   label,
@@ -17,6 +18,7 @@ export function AirportPicker({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [opts, setOpts] = useState<Airport[]>([]);
+  const [mapOpen, setMapOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   // debounce autocomplete lookups
@@ -66,9 +68,18 @@ export function AirportPicker({
 
   return (
     <div className="relative" ref={boxRef}>
-      <label className="mb-1 block text-xs font-medium" style={{ color: "var(--hint)" }}>
-        {label}
-      </label>
+      <div className="mb-1 flex items-center justify-between">
+        <label className="block text-xs font-medium" style={{ color: "var(--hint)" }}>
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={() => setMapOpen(true)}
+          className="flex items-center gap-1 text-xs font-medium text-emerald-600 transition active:scale-95"
+        >
+          <MapIcon size={13} /> на карте
+        </button>
+      </div>
 
       {value ? (
         <div
@@ -125,6 +136,18 @@ export function AirportPicker({
             </button>
           ))}
         </div>
+      )}
+
+      {mapOpen && (
+        <MapPicker
+          title={label}
+          selected={value}
+          onSelect={(a) => {
+            pick(a);
+            setMapOpen(false);
+          }}
+          onClose={() => setMapOpen(false)}
+        />
       )}
     </div>
   );

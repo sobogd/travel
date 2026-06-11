@@ -24,6 +24,9 @@ jobs:
         run: npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # NEXT_PUBLIC_* is inlined at build time, so it must be present here
+          # (not only in the runtime .env written on the server).
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
 
       - name: Copy build to server
         uses: appleboy/scp-action@v0.1.7

@@ -65,9 +65,15 @@ export function MapPicker({
   const onMapLoad = useCallback(
     (map: google.maps.Map) => {
       mapRef.current = map;
+      // Set the initial view ONCE here. We must not pass center/zoom as props
+      // to <GoogleMap> — those are controlled and would snap the map back to
+      // their values on every re-render (each bbox fetch re-renders).
       if (selected?.lat != null && selected?.lon != null) {
-        map.panTo({ lat: selected.lat, lng: selected.lon });
+        map.setCenter({ lat: selected.lat, lng: selected.lon });
         map.setZoom(8);
+      } else {
+        map.setCenter({ lat: FALLBACK.lat, lng: FALLBACK.lng });
+        map.setZoom(FALLBACK.zoom);
       }
     },
     [selected],
@@ -129,8 +135,6 @@ export function MapPicker({
             </div>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={{ lat: FALLBACK.lat, lng: FALLBACK.lng }}
-              zoom={FALLBACK.zoom}
               onLoad={onMapLoad}
               onIdle={loadBounds}
               options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}

@@ -7,6 +7,38 @@ import { prisma } from "./prisma";
 
 const HOST = "aerodatabox.p.rapidapi.com";
 
+// Persist the rate-limit snapshot from RapidAPI response headers. The *-reset
+// header is seconds remaining until the window rolls over, so resetAt is a
+// wall-clock timestamp. Best-effort: never let quota bookkeeping break a search.
+async function recordQuota(h: Headers): Promise<void> {
+  const num = (name: string) => {
+    const v = h.get(name);
+    return v == null ? null : Number(v);
+  };
+  const unitsLimit = num("x-ratelimit-api-units-limit");
+  const unitsRemaining = num("x-ratelimit-api-units-remaining");
+  const requestsLimit = num("x-ratelimit-requests-limit");
+  const requestsRemaining = num("x-ratelimit-requests-remaining");
+  const resetSec = num("x-ratelimit-api-units-reset");
+  if (unitsLimit == null || unitsRemaining == null || resetSec == null) return;
+  const data = {
+    unitsLimit,
+    unitsRemaining,
+    requestsLimit: requestsLimit ?? 0,
+    requestsRemaining: requestsRemaining ?? 0,
+    resetAt: new Date(Date.now() + resetSec * 1000),
+  };
+  try {
+    await prisma.apiQuota.upsert({
+      where: { provider: "aerodatabox" },
+      create: { provider: "aerodatabox", ...data },
+      update: data,
+    });
+  } catch {
+    /* ignore — telemetry must not break the request */
+  }
+}
+
 export type ParsedFlight = {
   peerIata: string | null; // the OTHER airport (dest for Dep, origin for Arr)
   peerName: string | null;
@@ -94,6 +126,7 @@ async function fetchFids(
   const res = await throttle(() =>
     fetch(url, { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": key } }),
   );
+  await recordQuota(res.headers); // refresh quota snapshot (even on 429)
   if (res.status === 204) return [];
   if (!res.ok) throw new Error(`AeroDataBox ${res.status}`);
   return parse(await res.json(), direction);

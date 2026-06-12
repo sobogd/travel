@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, Loader2, Lock, ArrowRight, Plane, History as HistoryIcon, Trash2 } from "lucide-react";
 import { AirportPicker } from "@/components/AirportPicker";
+import { QuotaBadge } from "@/components/QuotaBadge";
 import { ResultsSheet, type SearchResp } from "@/components/ResultsSheet";
 import { apiFetch, initTelegram, telegramUserId } from "@/lib/client";
 import type { Airport } from "@/lib/types";
@@ -28,6 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SearchResp | null>(null); // open results popover
   const [history, setHistory] = useState<SearchRow[]>([]);
+  const [quotaKey, setQuotaKey] = useState(0); // bump → QuotaBadge refetches
 
   const loadHistory = useCallback(async () => {
     try {
@@ -65,6 +67,7 @@ export default function Home() {
       if (res.status === 403) return setForbidden(true);
       if (!res.ok) throw new Error(data.error || "Ошибка поиска");
       setSheet(data); // open popover with results
+      setQuotaKey((k) => k + 1); // search consumed api-units → refresh badge
       await loadHistory();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка");
@@ -122,8 +125,9 @@ export default function Home() {
     >
       <div className="flex w-full max-w-2xl flex-col gap-5">
         <header className="flex items-center gap-2 pt-2">
-          <Plane size={22} className="text-emerald-500" />
-          <h1 className="text-2xl font-bold tracking-tight">Маршруты с пересадкой</h1>
+          <Plane size={22} className="shrink-0 text-emerald-500" />
+          <h1 className="flex-1 text-2xl font-bold tracking-tight">Маршруты с пересадкой</h1>
+          <QuotaBadge refreshKey={quotaKey} />
         </header>
 
         <div

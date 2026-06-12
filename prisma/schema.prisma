@@ -39,6 +39,21 @@ model Search {
   @@map("searches")
 }
 
+// Singleton snapshot of an upstream API's rate-limit quota, refreshed from the
+// response headers after every call (one row per provider). Lets the UI show
+// how many api-units are left and when the window resets.
+model ApiQuota {
+  provider          String   @id // "aerodatabox"
+  unitsLimit        Int
+  unitsRemaining    Int
+  requestsLimit     Int
+  requestsRemaining Int
+  resetAt           DateTime // when the quota window rolls over
+  updatedAt         DateTime @updatedAt
+
+  @@map("api_quota")
+}
+
 // Cached chunk of an airport's FIDS — one row = one 12h AeroDataBox call.
 // flights: ParsedFlight[] (see lib/aerodatabox.ts).
 model FidsCache {

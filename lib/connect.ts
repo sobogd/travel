@@ -48,7 +48,7 @@ function minLayover(distKm: number): number {
 }
 
 // every (date, half) chunk across the whole inclusive period
-function periodChunks(dateFrom: string, dateTo: string): Array<{ date: string; half: Half }> {
+export function periodChunks(dateFrom: string, dateTo: string): Array<{ date: string; half: Half }> {
   const out: Array<{ date: string; half: Half }> = [];
   let d = dateFrom;
   for (let i = 0; i < 90 && d <= dateTo; i++) {

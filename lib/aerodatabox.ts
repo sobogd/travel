@@ -165,6 +165,21 @@ async function fetchFids(
   throw new Error("AeroDataBox: all tokens exhausted");
 }
 
+// Cache-only read for one (airport, direction, date, half) — never calls the
+// API. Returns [] when nothing is cached. Used by the debug analyze view, which
+// must stay free of API units regardless of cache freshness.
+export async function getCachedFids(
+  airportCode: string,
+  direction: Direction,
+  date: string,
+  half: Half,
+): Promise<ParsedFlight[]> {
+  const cached = await prisma.fidsCache.findUnique({
+    where: { airportCode_direction_date_half: { airportCode, direction, date, half } },
+  });
+  return cached ? (cached.flights as unknown as ParsedFlight[]) : [];
+}
+
 // Cached FIDS for one (airport, direction, date, half). Hits DB first.
 export async function getFids(
   airportCode: string,

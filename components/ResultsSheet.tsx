@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX, Map as MapIcon, ExternalLink } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Plane, Car, Clock, CalendarX, Map as MapIcon, ExternalLink, BarChart2, Loader2 } from "lucide-react";
 import { carrierName } from "@/lib/types";
 import { googleFlights, dateOf } from "@/lib/deeplink";
+import { apiFetch } from "@/lib/client";
 import { MapSheet } from "@/components/MapSheet";
 
 const openGoogle = (o: string, d: string, local: string | null) =>
@@ -35,6 +36,15 @@ export type SearchResp = {
   dateFrom: string;
   dateTo: string;
   itineraries: Itinerary[];
+};
+
+type PeerRow = { iata: string; name: string | null; city: string | null; country: string | null; flights: number };
+type AnalyzeResp = {
+  origin: string;
+  dest: string;
+  cached: boolean;
+  fromOrigin: PeerRow[];
+  toDest: PeerRow[];
 };
 
 export const fmtTime = (s: string | null) => {
@@ -123,10 +133,45 @@ function LegDetail({ leg }: { leg: Leg }) {
   );
 }
 
+function PeerList({ title, rows }: { title: string; rows: PeerRow[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-xs font-semibold" style={{ color: "var(--hint)" }}>
+        {title} <span className="font-normal">({rows.length})</span>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-xs" style={{ color: "var(--hint)" }}>— нет в кеше</div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {rows.map((r) => (
+            <div key={r.iata} className="flex items-center gap-2 text-sm">
+              <span className="font-mono text-xs">{r.iata}</span>
+              <span className="min-w-0 flex-1 truncate">{r.city || r.name || r.iata}{r.country ? ` · ${r.country}` : ""}</span>
+              <span className="text-xs tabular-nums" style={{ color: "var(--hint)" }}>{r.flights}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose: () => void }) {
   const [sel, setSel] = useState<Itinerary | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyze, setAnalyze] = useState<AnalyzeResp | null>(null);
   const items = result.itineraries;
+
+  async function runAnalyze() {
+    setAnalyzing(true);
+    try {
+      const res = await apiFetch(`/api/searches/${result.id}/analyze`);
+      if (res.ok) setAnalyze(await res.json());
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   return (
     <>
@@ -190,9 +235,36 @@ export function ResultsSheet({ result, onClose }: { result: SearchResp; onClose:
             </div>
           ) : items.length === 0 ? (
             // ---- EMPTY ----
-            <div className="flex flex-col items-center gap-2 py-12 text-center text-sm" style={{ color: "var(--hint)" }}>
-              <CalendarX size={26} />
-              Ничего не найдено. Попробуй больше радиус / время пересадки / другой период.
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-2 py-8 text-center text-sm" style={{ color: "var(--hint)" }}>
+                <CalendarX size={26} />
+                Ничего не найдено. Попробуй больше радиус / время пересадки / другой период.
+              </div>
+
+              {!analyze && (
+                <button
+                  onClick={runAnalyze}
+                  disabled={analyzing}
+                  className="mx-auto flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-60"
+                  style={{ borderColor: "var(--border)", color: "var(--text)" }}
+                >
+                  {analyzing ? <Loader2 size={15} className="animate-spin" /> : <BarChart2 size={15} />}
+                  Анализ (из кеша)
+                </button>
+              )}
+
+              {analyze && !analyze.cached && (
+                <div className="text-center text-xs" style={{ color: "var(--hint)" }}>
+                  Нет данных в кеше за этот период.
+                </div>
+              )}
+
+              {analyze && analyze.cached && (
+                <div className="flex flex-col gap-4 rounded-2xl border p-3.5" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                  <PeerList title={`Из ${analyze.origin} летают в:`} rows={analyze.fromOrigin} />
+                  <PeerList title={`В ${analyze.dest} летают из:`} rows={analyze.toDest} />
+                </div>
+              )}
             </div>
           ) : (
             // ---- LIST ----

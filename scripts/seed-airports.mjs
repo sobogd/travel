@@ -38,7 +38,6 @@ async function main() {
   const lines = text.split("\n").filter(Boolean);
   const header = parseRow(lines[0]);
   const idx = (name) => header.indexOf(name);
-  const iType = idx("type");
   const iName = idx("name");
   const iLat = idx("latitude_deg");
   const iLon = idx("longitude_deg");
@@ -54,12 +53,10 @@ async function main() {
     const r = parseRow(lines[i]);
     const iata = (r[iIata] || "").trim().toUpperCase();
     if (!iata || iata.length !== 3) continue;
-    const type = r[iType] || "";
     const sched = r[iSched] || "";
-    const keep =
-      type === "large_airport" ||
-      type === "medium_airport" ||
-      sched === "yes";
+    // Keep only airports with scheduled airline service — drops medium/GA fields
+    // that carry an IATA code but no regular flights (unreachable hubs).
+    const keep = sched === "yes";
     if (!keep) continue;
     if (seen.has(iata)) continue;
     seen.add(iata);

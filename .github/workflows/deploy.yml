@@ -65,6 +65,10 @@ jobs:
             npx playwright install chromium
             npx prisma migrate deploy
             npx prisma generate
+            # Seed the env AERODATABOX_KEY into api_tokens on first deploy
+            # (idempotent: no-op once any token exists). Raw `node` doesn't read
+            # .env, so pass the vars inline.
+            DATABASE_URL="${{ secrets.DATABASE_URL }}" AERODATABOX_KEY="${{ secrets.AERODATABOX_KEY }}" node scripts/seed-token.mjs || true
             # PORT must be a real env var — next start ignores PORT from .env file
             PORT=8201 pm2 restart travel --update-env || PORT=8201 pm2 start npm --name "travel" -- start
             pm2 save

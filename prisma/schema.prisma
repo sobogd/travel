@@ -39,19 +39,25 @@ model Search {
   @@map("searches")
 }
 
-// Singleton snapshot of an upstream API's rate-limit quota, refreshed from the
-// response headers after every call (one row per provider). Lets the UI show
-// how many api-units are left and when the window resets.
-model ApiQuota {
-  provider          String   @id // "aerodatabox"
-  unitsLimit        Int
-  unitsRemaining    Int
-  requestsLimit     Int
-  requestsRemaining Int
-  resetAt           DateTime // when the quota window rolls over
-  updatedAt         DateTime @updatedAt
+// An AeroDataBox (RapidAPI) access token. We keep several and rotate by
+// most-remaining api-units. Quota fields are refreshed from the response
+// headers after every call; resetAt marks when the window rolls over (past =>
+// the token is effectively replenished). Managed from the in-app admin page.
+model ApiToken {
+  id                String    @id @default(cuid())
+  label             String // human-friendly name
+  key               String // the RapidAPI key (secret)
+  enabled           Boolean   @default(true)
+  unitsLimit        Int       @default(0)
+  unitsRemaining    Int       @default(0)
+  requestsLimit     Int       @default(0)
+  requestsRemaining Int       @default(0)
+  resetAt           DateTime? // when the quota window rolls over (null = unknown)
+  lastUsedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  @@map("api_quota")
+  @@map("api_tokens")
 }
 
 // Cached chunk of an airport's FIDS — one row = one 12h AeroDataBox call.

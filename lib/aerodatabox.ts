@@ -7,10 +7,29 @@ import { prisma } from "./prisma";
 
 const HOST = "aerodatabox.p.rapidapi.com";
 
-// Persist the rate-limit snapshot from RapidAPI response headers. The *-reset
-// header is seconds remaining until the window rolls over, so resetAt is a
-// wall-clock timestamp. Best-effort: never let quota bookkeeping break a search.
-async function recordQuota(h: Headers): Promise<void> {
+type TokenLite = { id: string; key: string };
+
+// Pick the enabled token with the most api-units left. A token whose window has
+// already reset counts as fully replenished (RapidAPI rolls it over server-side;
+// the next response corrects the exact number). Returns null when none is usable.
+async function pickToken(skipIds: Set<string>): Promise<TokenLite | null> {
+  const tokens = await prisma.apiToken.findMany({ where: { enabled: true } });
+  const now = Date.now();
+  let best: { t: (typeof tokens)[number]; remaining: number } | null = null;
+  for (const t of tokens) {
+    if (skipIds.has(t.id)) continue;
+    const replenished = t.resetAt != null && t.resetAt.getTime() < now;
+    const remaining = replenished ? t.unitsLimit || 1 : t.unitsRemaining;
+    if (remaining <= 0) continue;
+    if (!best || remaining > best.remaining) best = { t, remaining };
+  }
+  return best ? { id: best.t.id, key: best.t.key } : null;
+}
+
+// Persist the rate-limit snapshot from RapidAPI response headers onto the token
+// that made the call. The *-reset header is seconds remaining until the window
+// rolls over, so resetAt is a wall-clock timestamp. Best-effort.
+async function recordQuota(tokenId: string, h: Headers): Promise<void> {
   const num = (name: string) => {
     const v = h.get(name);
     return v == null ? null : Number(v);
@@ -20,19 +39,18 @@ async function recordQuota(h: Headers): Promise<void> {
   const requestsLimit = num("x-ratelimit-requests-limit");
   const requestsRemaining = num("x-ratelimit-requests-remaining");
   const resetSec = num("x-ratelimit-api-units-reset");
-  if (unitsLimit == null || unitsRemaining == null || resetSec == null) return;
-  const data = {
-    unitsLimit,
-    unitsRemaining,
-    requestsLimit: requestsLimit ?? 0,
-    requestsRemaining: requestsRemaining ?? 0,
-    resetAt: new Date(Date.now() + resetSec * 1000),
-  };
+  if (unitsLimit == null || unitsRemaining == null) return;
   try {
-    await prisma.apiQuota.upsert({
-      where: { provider: "aerodatabox" },
-      create: { provider: "aerodatabox", ...data },
-      update: data,
+    await prisma.apiToken.update({
+      where: { id: tokenId },
+      data: {
+        unitsLimit,
+        unitsRemaining,
+        requestsLimit: requestsLimit ?? 0,
+        requestsRemaining: requestsRemaining ?? 0,
+        resetAt: resetSec != null ? new Date(Date.now() + resetSec * 1000) : undefined,
+        lastUsedAt: new Date(),
+      },
     });
   } catch {
     /* ignore — telemetry must not break the request */
@@ -116,20 +134,35 @@ async function fetchFids(
   date: string,
   half: Half,
 ): Promise<ParsedFlight[]> {
-  const key = process.env.AERODATABOX_KEY;
-  if (!key) throw new Error("AERODATABOX_KEY not set");
   const from = half === "AM" ? `${date}T00:00` : `${date}T12:00`;
   const to = half === "AM" ? `${date}T12:00` : `${date}T23:59`;
   const url =
     `https://${HOST}/flights/airports/iata/${airportCode}/${from}/${to}` +
     `?direction=${direction}&withLeg=true&withCancelled=false&withCodeshared=true`;
-  const res = await throttle(() =>
-    fetch(url, { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": key } }),
-  );
-  await recordQuota(res.headers); // refresh quota snapshot (even on 429)
-  if (res.status === 204) return [];
-  if (!res.ok) throw new Error(`AeroDataBox ${res.status}`);
-  return parse(await res.json(), direction);
+
+  // Rotate over tokens: pick most-remaining, and on a 429 (token exhausted)
+  // zero it out and fall through to the next one. Cap retries by token count.
+  const tried = new Set<string>();
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const token = await pickToken(tried);
+    if (!token) throw new Error("AeroDataBox: no token with quota left");
+    const res = await throttle(() =>
+      fetch(url, { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": token.key } }),
+    );
+    await recordQuota(token.id, res.headers); // refresh snapshot (even on 429)
+    if (res.status === 429) {
+      tried.add(token.id);
+      // Force this token to the back of the queue in case headers were absent.
+      await prisma.apiToken
+        .update({ where: { id: token.id }, data: { unitsRemaining: 0 } })
+        .catch(() => {});
+      continue;
+    }
+    if (res.status === 204) return [];
+    if (!res.ok) throw new Error(`AeroDataBox ${res.status}`);
+    return parse(await res.json(), direction);
+  }
+  throw new Error("AeroDataBox: all tokens exhausted");
 }
 
 // Cached FIDS for one (airport, direction, date, half). Hits DB first.

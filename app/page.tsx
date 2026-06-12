@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, Loader2, Lock, ArrowRight, Plane, History as HistoryIcon, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Search, Loader2, Lock, ArrowRight, Plane, History as HistoryIcon, Trash2, Settings } from "lucide-react";
 import { AirportPicker } from "@/components/AirportPicker";
 import { QuotaBadge } from "@/components/QuotaBadge";
 import { ResultsSheet, type SearchResp } from "@/components/ResultsSheet";
@@ -128,6 +129,9 @@ export default function Home() {
           <Plane size={22} className="shrink-0 text-emerald-500" />
           <h1 className="flex-1 text-2xl font-bold tracking-tight">Маршруты с пересадкой</h1>
           <QuotaBadge refreshKey={quotaKey} />
+          <Link href="/admin" aria-label="Токены" className="rounded-lg p-1.5 transition active:scale-90" style={{ color: "var(--hint)" }}>
+            <Settings size={18} />
+          </Link>
         </header>
 
         <div
